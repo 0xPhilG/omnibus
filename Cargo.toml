@@ -2,6 +2,14 @@
 name = "omnibus"
 version = "0.1.0"
 edition = "2024"
+authors = ["0xPhilG"]
+description = "A lightweight, in-process publish/subscribe event bus for Rust"
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/0xPhilG/omnibus"
+repository = "https://github.com/0xPhilG/omnibus"
+keywords = ["pubsub", "event-bus", "messaging", "bus", "broadcast"]
+categories = ["concurrency", "data-structures"]
 
 [dependencies]
 thiserror = "2"

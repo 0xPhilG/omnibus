@@ -21,7 +21,7 @@ Add the crate to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-omnibus = { git = "https://github.com/0xPhilG/omnibus" }   # or the published version once on crates.io
+omnibus = "0.1.0"
 ```
 
 ## Quick start
