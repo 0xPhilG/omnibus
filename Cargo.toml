@@ -6,7 +6,6 @@ authors = ["0xPhilG"]
 description = "A lightweight, in-process publish/subscribe event bus for Rust"
 license = "MIT"
 readme = "README.md"
-homepage = "https://github.com/0xPhilG/omnibus"
 repository = "https://github.com/0xPhilG/omnibus"
 keywords = ["pubsub", "event-bus", "messaging", "bus", "broadcast"]
 categories = ["concurrency", "data-structures"]

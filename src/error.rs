@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 /// Errors returned by the omnibus message bus.
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 pub enum OmnibusError {
     /// The channel was disconnected; all senders have been dropped.
     #[error("channel disconnected")]
@@ -12,5 +12,7 @@ pub enum OmnibusError {
     Poisoned,
 }
 
-/// Convenience alias for `Result<T, OmnibusError>`.
+/// Convenience alias for [`Result`](std::result::Result)`<T, `[`OmnibusError`]`>`.
+///
+/// All fallible functions in this crate return this type.
 pub type Result<T> = std::result::Result<T, OmnibusError>;

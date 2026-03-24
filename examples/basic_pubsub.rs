@@ -48,7 +48,8 @@ fn main() {
         .unwrap();
     println!(
         "Published Sensor/Temperature: delivered={}, dropped={}",
-        r.delivered, r.dropped
+        r.delivered(),
+        r.dropped()
     );
 
     let r = bus
@@ -60,7 +61,8 @@ fn main() {
         .unwrap();
     println!(
         "Published Sensor/Humidity:    delivered={}, dropped={}",
-        r.delivered, r.dropped
+        r.delivered(),
+        r.dropped()
     );
 
     let r = bus
@@ -72,7 +74,8 @@ fn main() {
         .unwrap();
     println!(
         "Published Other/Temperature:  delivered={}, dropped={}",
-        r.delivered, r.dropped
+        r.delivered(),
+        r.dropped()
     );
 
     println!("\n=== wildcard (drain, receives all 3) ===");

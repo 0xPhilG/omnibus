@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use omnibus::{Bus, Event, Filter, OmnibusError};
+use omnibus::{Bus, BusReceiver, Event, Filter, OmnibusError};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum Origin {
@@ -148,8 +148,8 @@ fn test_publish_result_counts() {
     let result = bus
         .publish(Event::new(Origin::Sensor, Kind::Temperature, 1))
         .unwrap();
-    assert_eq!(result.delivered, 2);
-    assert_eq!(result.dropped, 0);
+    assert_eq!(result.delivered(), 2);
+    assert_eq!(result.dropped(), 0);
 }
 
 #[test]
@@ -159,14 +159,14 @@ fn test_publish_result_dropped() {
     let r1 = bus
         .publish(Event::new(Origin::Sensor, Kind::Temperature, 1))
         .unwrap();
-    assert_eq!(r1.delivered, 1);
-    assert_eq!(r1.dropped, 0);
+    assert_eq!(r1.delivered(), 1);
+    assert_eq!(r1.dropped(), 0);
     // Channel is now full (capacity=1), next publish should drop
     let r2 = bus
         .publish(Event::new(Origin::Sensor, Kind::Temperature, 2))
         .unwrap();
-    assert_eq!(r2.delivered, 0);
-    assert_eq!(r2.dropped, 1);
+    assert_eq!(r2.delivered(), 0);
+    assert_eq!(r2.dropped(), 1);
     // First event is still there
     assert_eq!(sub.recv().unwrap().unwrap().payload(), &1);
 }
@@ -215,8 +215,8 @@ fn test_subscriber_cleanup_after_drop() {
     let result = bus
         .publish(Event::new(Origin::Sensor, Kind::Temperature, 1))
         .unwrap();
-    assert_eq!(result.delivered, 0);
-    assert_eq!(result.dropped, 0);
+    assert_eq!(result.delivered(), 0);
+    assert_eq!(result.dropped(), 0);
 }
 
 #[test]
@@ -244,8 +244,8 @@ fn test_publish_no_subscribers() {
     let result = bus
         .publish(Event::new(Origin::Sensor, Kind::Temperature, 1))
         .unwrap();
-    assert_eq!(result.delivered, 0);
-    assert_eq!(result.dropped, 0);
+    assert_eq!(result.delivered(), 0);
+    assert_eq!(result.dropped(), 0);
 }
 
 // ---------- Additional coverage tests ----------
@@ -279,8 +279,8 @@ fn test_with_capacity_zero_drops_everything() {
         .unwrap();
     // sync_channel(0) is a rendezvous channel — try_send always returns Full when
     // nobody is blocking on recv, so everything is dropped.
-    assert_eq!(result.delivered, 0);
-    assert_eq!(result.dropped, 1);
+    assert_eq!(result.delivered(), 0);
+    assert_eq!(result.dropped(), 1);
     assert!(sub.recv().unwrap().is_none());
 }
 
@@ -340,8 +340,8 @@ fn test_mixed_filter_overlap_all_four_buckets() {
     let result = bus
         .publish(Event::new(Origin::Sensor, Kind::Temperature, 1))
         .unwrap();
-    assert_eq!(result.delivered, 4);
-    assert_eq!(result.dropped, 0);
+    assert_eq!(result.delivered(), 4);
+    assert_eq!(result.dropped(), 0);
 
     assert!(exact.recv().unwrap().is_some());
     assert!(origin_wild.recv().unwrap().is_some());
@@ -415,22 +415,26 @@ fn test_concurrent_subscribe_and_publish() {
 
 #[test]
 fn test_publish_result_equality_and_copy() {
-    let a = omnibus::PublishResult {
-        delivered: 1,
-        dropped: 2,
-    };
-    let b = omnibus::PublishResult {
-        delivered: 1,
-        dropped: 2,
-    };
-    let c = omnibus::PublishResult {
-        delivered: 0,
-        dropped: 0,
-    };
+    // Obtain PublishResult instances via publish() since fields are private.
+    let bus: Bus<Origin, Kind, i32> = Bus::new();
+    let _sub = bus.subscribe(Filter::Any, Filter::Any).unwrap();
+    let a = bus
+        .publish(Event::new(Origin::Sensor, Kind::Temperature, 1))
+        .unwrap();
+    let b = bus
+        .publish(Event::new(Origin::Sensor, Kind::Temperature, 2))
+        .unwrap();
+    // Both deliver=1, drop=0 → equal.
     assert_eq!(a, b);
+
+    // A result with no subscribers yields zero deliveries → not equal.
+    let bus2: Bus<Origin, Kind, i32> = Bus::new();
+    let c = bus2
+        .publish(Event::new(Origin::Sensor, Kind::Temperature, 3))
+        .unwrap();
     assert_ne!(a, c);
 
-    // Copy and Clone
+    // PublishResult is Copy + Clone.
     let d = a;
     let e = a.clone();
     assert_eq!(d, e);
@@ -484,20 +488,20 @@ fn test_drop_multiple_subscribers_same_filter() {
     let result = bus
         .publish(Event::new(Origin::Sensor, Kind::Temperature, 1))
         .unwrap();
-    assert_eq!(result.delivered, 2);
+    assert_eq!(result.delivered(), 2);
 
     drop(sub1);
     let result = bus
         .publish(Event::new(Origin::Sensor, Kind::Temperature, 2))
         .unwrap();
-    assert_eq!(result.delivered, 1);
+    assert_eq!(result.delivered(), 1);
 
     drop(sub3);
     let result = bus
         .publish(Event::new(Origin::Sensor, Kind::Temperature, 3))
         .unwrap();
-    assert_eq!(result.delivered, 0);
-    assert_eq!(result.dropped, 0);
+    assert_eq!(result.delivered(), 0);
+    assert_eq!(result.dropped(), 0);
 }
 
 #[test]
@@ -532,10 +536,11 @@ fn test_subscribe_after_publish_misses_earlier_events() {
 
 #[test]
 fn test_publish_result_debug_format() {
-    let r = omnibus::PublishResult {
-        delivered: 3,
-        dropped: 1,
-    };
+    // PublishResult fields are private; obtain an instance through publish().
+    let bus: Bus<Origin, Kind, i32> = Bus::new();
+    let r = bus
+        .publish(Event::new(Origin::Sensor, Kind::Temperature, 0))
+        .unwrap();
     let dbg = format!("{:?}", r);
     assert!(dbg.contains("delivered"));
     assert!(dbg.contains("dropped"));
@@ -545,4 +550,14 @@ fn test_publish_result_debug_format() {
 fn test_error_is_std_error() {
     fn assert_std_error<E: std::error::Error>() {}
     assert_std_error::<OmnibusError>();
+}
+
+#[test]
+fn test_bus_send_sync() {
+    fn assert_send<T: Send>() {}
+    fn assert_sync<T: Sync>() {}
+    assert_send::<Bus<Origin, Kind, String>>();
+    assert_sync::<Bus<Origin, Kind, String>>();
+    // BusReceiver is Send but not Sync (mpsc::Receiver is not Sync by design).
+    assert_send::<BusReceiver<Origin, Kind, String>>();
 }
